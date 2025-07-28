@@ -62,7 +62,22 @@ function IndexPopup() {
     // Listen for AI responses
     chrome.runtime.onMessage.addListener((message) => {
       if (message.type === 'AI_RESPONSE') {
-        addChatMessage(message.response, 'ai')
+        let chatMessage = message.response
+
+        // Enhance message with analysis data if available
+        if (message.analysisData) {
+          const analysis = message.analysisData
+          const status = analysis.therapeutic_response.attention_status.replace(/_/g, ' ')
+          const severity = analysis.therapeutic_response.severity_level
+
+          chatMessage += `\n\n📊 Analysis: ${status} (Severity: ${severity}/10)`
+
+          if (analysis.therapeutic_response.recommendations && analysis.therapeutic_response.recommendations.length > 0) {
+            chatMessage += `\n💡 Recommendations:\n${analysis.therapeutic_response.recommendations.map(rec => `• ${rec}`).join('\n')}`
+          }
+        }
+
+        addChatMessage(chatMessage, 'ai')
       }
     })
   }, [])
@@ -135,9 +150,57 @@ function IndexPopup() {
       })
 
       setLastDOMData(response)
-      addChatMessage(`DOM extracted from: ${response.domData.url} (${response.domData.html.length} characters)`, 'ai')
+      addChatMessage(`DOM extracted from: ${(response as any).domData.url} (${(response as any).domData.html.length} characters)`, 'ai')
     } catch (error) {
       addChatMessage(`DOM extraction failed: ${error.message}`, 'ai')
+    } finally {
+      setIsExtractingDOM(false)
+    }
+  }
+
+  const testDOMExtraction = async () => {
+    setIsExtractingDOM(true)
+    try {
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          type: 'TEST_DOM_EXTRACTION'
+        }, (response) => {
+          if (response && response.success) {
+            resolve(response)
+          } else {
+            reject(new Error(response?.error || 'DOM extraction test failed'))
+          }
+        })
+      })
+
+      const result = (response as any).result
+      setLastDOMData(result)
+
+      // Add detailed test results to chat
+      const testMessage = `🧪 DOM Extraction Test Results:
+📄 URL: ${result.url}
+📝 Title: ${result.title}
+📊 HTML Length: ${result.htmlLength} characters
+📄 Plain Text Length: ${result.plainTextLength} characters
+📈 Word Count: ${result.wordCount} (HTML) / ${result.plainTextWordCount} (Plain Text)
+⏱️ Reading Time: ~${result.estimatedReadingTime} minutes
+
+📄 Plain Text Preview:
+${result.plainTextPreview}
+
+📊 Content Analysis:
+• Images: ${result.analysis.hasImages ? 'Yes' : 'No'}
+• Forms: ${result.analysis.hasForms ? 'Yes' : 'No'}
+• Links: ${result.analysis.hasLinks ? 'Yes' : 'No'}
+• Videos: ${result.analysis.hasVideos ? 'Yes' : 'No'}`
+
+      addChatMessage(testMessage, 'ai')
+
+      // Also log to console for detailed inspection
+      console.log('🧪 Full DOM Test Result:', result)
+
+    } catch (error) {
+      addChatMessage(`❌ DOM extraction test failed: ${error.message}`, 'ai')
     } finally {
       setIsExtractingDOM(false)
     }
@@ -164,6 +227,109 @@ function IndexPopup() {
       addChatMessage(`Snapshot generation failed: ${error.message}`, 'ai')
     } finally {
       setIsGeneratingSnapshot(false)
+    }
+  }
+
+  const testBackendAnalysis = async () => {
+    try {
+      addChatMessage("🔗 Testing backend analysis integration...", 'ai')
+
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          type: 'TEST_BACKEND_ANALYSIS'
+        }, (response) => {
+          if (response && response.success) {
+            resolve(response)
+          } else {
+            reject(new Error(response?.error || 'Backend analysis test failed'))
+          }
+        })
+      })
+
+      const result = response as any
+      if (result.analysisResult) {
+        const analysis = result.analysisResult
+        addChatMessage(`✅ Backend analysis successful!
+
+📊 Analysis Results:
+• Status: ${analysis.therapeutic_response.attention_status.replace(/_/g, ' ')}
+• Severity: ${analysis.therapeutic_response.severity_level}/10
+• Action Needed: ${analysis.therapeutic_response.action_needed ? 'Yes' : 'No'}
+
+💬 Message: ${analysis.therapeutic_response.message}
+
+${analysis.therapeutic_response.recommendations && analysis.therapeutic_response.recommendations.length > 0 ?
+            `💡 Recommendations:
+${analysis.therapeutic_response.recommendations.map(rec => `• ${rec}`).join('\n')}` : ''}`, 'ai')
+      } else {
+        addChatMessage(`❌ Backend analysis failed: No response from server`, 'ai')
+      }
+    } catch (error) {
+      addChatMessage(`❌ Backend analysis test failed: ${error.message}`, 'ai')
+    }
+  }
+
+  const sendTestToBackend = async () => {
+    try {
+      addChatMessage("🧪 Sending test data to backend...", 'ai')
+
+      // Create a test payload
+      const testPayload = {
+        dom: "YouTube - Funny Cat Videos Compilation 2024 - Watch more videos, subscribe, like, comment. Trending videos, entertainment content",
+        current_time: new Date().toISOString(),
+        current_tasks: {
+          task1: {
+            title: "Complete quarterly report",
+            description: "Finish Q4 analysis",
+            estimated_duration_minutes: 180,
+            priority: "urgent"
+          },
+          task2: {
+            title: "Prepare presentation slides",
+            estimated_duration_minutes: 120,
+            priority: "high"
+          },
+          task3: {
+            title: "Review team feedback",
+            estimated_duration_minutes: 60,
+            priority: "medium"
+          }
+        }
+      }
+
+      // Send directly to backend
+      const response = await fetch('http://localhost:8000/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testPayload)
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const analysisResult = await response.json()
+
+      addChatMessage(`✅ Direct backend test successful!
+
+📊 Test Results:
+• Status: ${analysisResult.therapeutic_response.attention_status.replace(/_/g, ' ')}
+• Severity: ${analysisResult.therapeutic_response.severity_level}/10
+• Action Needed: ${analysisResult.therapeutic_response.action_needed ? 'Yes' : 'No'}
+
+💬 Message: ${analysisResult.therapeutic_response.message}
+
+${analysisResult.therapeutic_response.recommendations && analysisResult.therapeutic_response.recommendations.length > 0 ?
+          `💡 Recommendations:
+${analysisResult.therapeutic_response.recommendations.map(rec => `• ${rec}`).join('\n')}` : ''}
+
+🔗 Response Time: ${response.headers.get('x-response-time') || 'N/A'}`, 'ai')
+
+    } catch (error) {
+      addChatMessage(`❌ Direct backend test failed: ${error.message}`, 'ai')
+      console.error('Backend test error:', error)
     }
   }
 
@@ -356,8 +522,8 @@ function IndexPopup() {
         <button
           onClick={() => setCurrentView("tasks")}
           className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${currentView === "tasks"
-              ? "bg-blue-500 text-white"
-              : "text-gray-600 hover:text-gray-800"
+            ? "bg-blue-500 text-white"
+            : "text-gray-600 hover:text-gray-800"
             }`}
         >
           Tasks
@@ -365,8 +531,8 @@ function IndexPopup() {
         <button
           onClick={() => setCurrentView("chat")}
           className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${currentView === "chat"
-              ? "bg-blue-500 text-white"
-              : "text-gray-600 hover:text-gray-800"
+            ? "bg-blue-500 text-white"
+            : "text-gray-600 hover:text-gray-800"
             }`}
         >
           Chat
@@ -664,8 +830,8 @@ function IndexPopup() {
                 chatMessages.map(message => (
                   <div key={message.id} className={`flex ${message.type === 'ai' ? 'justify-start' : 'justify-end'}`}>
                     <div className={`rounded-lg p-3 max-w-xs ${message.type === 'ai'
-                        ? 'bg-blue-100 text-gray-700'
-                        : 'bg-blue-500 text-white'
+                      ? 'bg-blue-100 text-gray-700'
+                      : 'bg-blue-500 text-white'
                       }`}>
                       <p className="text-sm">{message.text}</p>
                       <p className="text-xs opacity-75 mt-1">
@@ -698,7 +864,35 @@ function IndexPopup() {
       )}
 
       {/* Footer */}
-      <div className="mt-6 text-center">
+      <div className="mt-6 text-center space-y-2">
+        <div className="flex gap-2 justify-center">
+          <button
+            onClick={testDOMExtraction}
+            disabled={isExtractingDOM}
+            className="px-3 py-1 bg-green-500 text-white rounded text-xs font-medium hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isExtractingDOM ? 'Testing...' : '🧪 Test DOM'}
+          </button>
+          <button
+            onClick={generateClientStateSnapshot}
+            disabled={isGeneratingSnapshot}
+            className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-medium hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGeneratingSnapshot ? 'Generating...' : '📊 Snapshot'}
+          </button>
+          <button
+            onClick={testBackendAnalysis}
+            className="px-3 py-1 bg-orange-500 text-white rounded text-xs font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            🔗 Test Backend
+          </button>
+          <button
+            onClick={sendTestToBackend}
+            className="px-3 py-1 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            🧪 Direct Test
+          </button>
+        </div>
         <p className="text-xs text-gray-500">
           Powered by AI • Helping students succeed
         </p>
