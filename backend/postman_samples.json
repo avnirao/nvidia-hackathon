@@ -1,0 +1,196 @@
+{
+  "info": {
+    "name": "Virtual Assistant Attention Monitor API v2.0",
+    "description": "Sample requests for testing the simplified schema with time pressure analysis"
+  },
+  "samples": [
+    {
+      "name": "High Time Pressure + Distracting Content",
+      "description": "4 PM with 6 hours of work remaining - should trigger urgent intervention",
+      "method": "POST",
+      "url": "http://localhost:8000/analyze",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "dom": "YouTube - Top 10 Funniest Cat Videos 2024 | Subscribe for more! | 12M views | Trending now | Entertainment | Watch next: Dog compilation | Like and share",
+        "current_time": "2024-12-19T16:00:00Z",
+        "current_tasks": {
+          "task1": {
+            "title": "Complete quarterly financial report", 
+            "description": "Analyze Q4 numbers and create executive summary",
+            "estimated_duration_minutes": 180,
+            "priority": "urgent"
+          },
+          "task2": {
+            "title": "Prepare client presentation slides",
+            "description": "Create PowerPoint for tomorrow's meeting",
+            "estimated_duration_minutes": 120,
+            "priority": "high"
+          },
+          "task3": {
+            "title": "Review team performance reviews",
+            "description": "Complete annual review process",
+            "estimated_duration_minutes": 90,
+            "priority": "high"
+          },
+          "task4": {
+            "title": "Update project timeline",
+            "estimated_duration_minutes": 45,
+            "priority": "medium"
+          }
+        }
+      }
+    },
+    {
+      "name": "Low Time Pressure + Productive Content",
+      "description": "9:30 AM with light workload - should show focused status",
+      "method": "POST", 
+      "url": "http://localhost:8000/analyze",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "dom": "Google Docs - Q4 Financial Report Draft - Collaborative editing | Share | Comment | Suggest | Version history | Last edited 2 minutes ago",
+        "current_time": "2024-12-19T09:30:00Z",
+        "current_tasks": {
+          "task1": {
+            "title": "Review morning emails",
+            "estimated_duration_minutes": 30,
+            "priority": "low"
+          },
+          "task2": {
+            "title": "Update project status dashboard",
+            "estimated_duration_minutes": 45,
+            "priority": "medium"
+          },
+          "task3": {
+            "title": "Team check-in meeting prep",
+            "estimated_duration_minutes": 20,
+            "priority": "low"
+          }
+        }
+      }
+    },
+    {
+      "name": "Medium Time Pressure + Shopping Distraction",
+      "description": "2 PM with moderate workload but distracted by shopping",
+      "method": "POST",
+      "url": "http://localhost:8000/analyze", 
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "dom": "Amazon.com - Holiday Deals | Black Friday Cyber Monday | Electronics Sale | Add to Cart | Buy Now | Free Shipping | Customer Reviews | Recommendations",
+        "current_time": "2024-12-19T14:00:00Z",
+        "current_tasks": {
+          "task1": {
+            "title": "Code review for new feature",
+            "estimated_duration_minutes": 90,
+            "priority": "high"
+          },
+          "task2": {
+            "title": "Write technical documentation",
+            "estimated_duration_minutes": 75,
+            "priority": "medium"
+          },
+          "task3": {
+            "title": "Bug fix for login issue",
+            "estimated_duration_minutes": 60,
+            "priority": "high"
+          },
+          "task4": {
+            "title": "Update API endpoints",
+            "estimated_duration_minutes": 45,
+            "priority": "medium"
+          }
+        }
+      }
+    },
+    {
+      "name": "Evening Work Session",
+      "description": "6:30 PM - past normal work hours with remaining tasks",
+      "method": "POST",
+      "url": "http://localhost:8000/analyze",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "dom": "Slack - #general channel | Team updates | Direct messages | Notifications | Online status | Work collaboration platform",
+        "current_time": "2024-12-19T18:30:00Z",
+        "current_tasks": {
+          "task1": {
+            "title": "Finish presentation for tomorrow",
+            "estimated_duration_minutes": 60,
+            "priority": "urgent"
+          },
+          "task2": {
+            "title": "Respond to client emails",
+            "estimated_duration_minutes": 30,
+            "priority": "high"
+          }
+        }
+      }
+    },
+    {
+      "name": "Quick Time Check",
+      "description": "Simple endpoint for quick time pressure assessment",
+      "method": "POST",
+      "url": "http://localhost:8000/quick-time-check?current_time=2024-12-19T15:30:00Z&task_count=6",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {}
+    },
+    {
+      "name": "Health Check",
+      "description": "Verify the API is running correctly",
+      "method": "GET",
+      "url": "http://localhost:8000/health",
+      "headers": {},
+      "body": {}
+    },
+    {
+      "name": "Get Configuration",
+      "description": "Retrieve current API configuration and features",
+      "method": "GET", 
+      "url": "http://localhost:8000/config",
+      "headers": {},
+      "body": {}
+    }
+  ],
+  "expected_responses": {
+    "high_pressure_example": {
+      "therapeutic_response": {
+        "action_needed": true,
+        "attention_status": "time_pressure",
+        "severity_level": 8,
+        "message": "Generated therapeutic message about time management",
+        "time_remaining_hours": 2.0,
+        "task_completion_estimate_hours": 7.25,
+        "recommendations": [
+          "Review and prioritize your most important tasks",
+          "Consider breaking large tasks into smaller, manageable chunks",
+          "Focus on high-priority items first",
+          "Be realistic about what can be accomplished today"
+        ]
+      },
+      "analysis_summary": "Time pressure: high - Status: time_pressure - Intervention provided (severity: 8/10)",
+      "time_analysis": {
+        "current_hour": 16.0,
+        "task_count": 4,
+        "time_remaining_hours": 2.0,
+        "estimated_work_hours": 7.25,
+        "time_pressure": "high"
+      },
+      "next_check_in_seconds": 30
+    }
+  },
+  "postman_import_instructions": [
+    "1. Open Postman",
+    "2. Click 'Import' in the top left",
+    "3. Select 'Raw text' tab", 
+    "4. Copy and paste the individual request JSON",
+    "5. Or create requests manually using the details below"
+  ]
+} 
