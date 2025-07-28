@@ -36,10 +36,27 @@ async function injectContentScript(tabId) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'DOM_EXTRACTED') {
-    console.log('Received DOM HTML from tab:', sender.tab?.url);
+  if (message.type === 'CONTENT_EXTRACTED') {
+    console.log('Received plain text from tab:', sender.tab?.url);
+    console.log('Page title:', message.content.title);
+    console.log('Plain text length:', message.content.plainText.length);
     
-    console.log('Extracted HTML snippet:', message.html);
+    // Log the actual plain text content
+    console.log('\n📄 EXTRACTED PLAIN TEXT:');
+    console.log('URL:', message.content.url);
+    console.log('Title:', message.content.title);
+    console.log('Content Length:', message.content.plainText.length, 'characters');
+    console.log('\n📝 CONTENT:');
+    console.log(message.content.plainText);
+    console.log('\n✅ Plain text extraction complete');
+    
+    // Store the plain text content
+    chrome.storage.local.set({ 
+      lastPlainText: message.content.plainText,
+      lastUrl: message.content.url,
+      lastTitle: message.content.title,
+      lastExtractionTime: new Date().toISOString()
+    });
     
     sendResponse({ success: true });
   }
