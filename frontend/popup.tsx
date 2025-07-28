@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import "./style.css"
+import { getClientStateSnapshot, type ClientStateSnapshot } from "./utils/clientStateSnapshot"
 
 interface Task {
   id: string
@@ -42,6 +43,14 @@ function IndexPopup() {
   const [newDeliverable, setNewDeliverable] = useState("")
   const [newDeliverableTime, setNewDeliverableTime] = useState(15)
 
+  // DOM extraction state
+  const [isExtractingDOM, setIsExtractingDOM] = useState(false)
+  const [lastDOMData, setLastDOMData] = useState<any>(null)
+
+  // Client state snapshot state
+  const [isGeneratingSnapshot, setIsGeneratingSnapshot] = useState(false)
+  const [lastSnapshot, setLastSnapshot] = useState<ClientStateSnapshot | null>(null)
+
   // Load tasks on component mount
   useEffect(() => {
     loadTasks()
@@ -70,6 +79,60 @@ function IndexPopup() {
       type
     }
     setChatMessages(prev => [...prev, newMessage])
+  }
+
+  const extractDOM = async () => {
+    setIsExtractingDOM(true)
+    try {
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          type: 'EXTRACT_DOM',
+          options: {
+            removeScripts: true,
+            removeStyles: true,
+            includeMetadata: true,
+            maxLength: 10000 // 10KB for testing
+          }
+        }, (response) => {
+          if (response && response.success) {
+            resolve(response)
+          } else {
+            reject(new Error(response?.error || 'DOM extraction failed'))
+          }
+        })
+      })
+
+      setLastDOMData(response)
+      addChatMessage(`DOM extracted from: ${response.domData.url} (${response.domData.html.length} characters)`, 'ai')
+    } catch (error) {
+      addChatMessage(`DOM extraction failed: ${error.message}`, 'ai')
+    } finally {
+      setIsExtractingDOM(false)
+    }
+  }
+
+  const generateClientStateSnapshot = async () => {
+    setIsGeneratingSnapshot(true)
+    try {
+      const snapshot = await getClientStateSnapshot()
+      setLastSnapshot(snapshot)
+
+      // Add to chat for visibility
+      const summary = `Client State Snapshot generated:
+• ${snapshot.current_tasks.length} tasks
+• DOM string length: ${snapshot.dom_string.length} characters
+• Timestamp: ${new Date(snapshot.timestamp).toLocaleTimeString()}`
+
+      addChatMessage(summary, 'ai')
+
+      // Log the full JSON for debugging
+      console.log('Client State Snapshot:', JSON.stringify(snapshot, null, 2))
+
+    } catch (error) {
+      addChatMessage(`Snapshot generation failed: ${error.message}`, 'ai')
+    } finally {
+      setIsGeneratingSnapshot(false)
+    }
   }
 
   const addTask = () => {
@@ -216,8 +279,8 @@ function IndexPopup() {
         <button
           onClick={() => setCurrentView("tasks")}
           className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${currentView === "tasks"
-              ? "bg-blue-500 text-white"
-              : "text-gray-600 hover:text-gray-800"
+            ? "bg-blue-500 text-white"
+            : "text-gray-600 hover:text-gray-800"
             }`}
         >
           Tasks
@@ -225,8 +288,8 @@ function IndexPopup() {
         <button
           onClick={() => setCurrentView("chat")}
           className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${currentView === "chat"
-              ? "bg-blue-500 text-white"
-              : "text-gray-600 hover:text-gray-800"
+            ? "bg-blue-500 text-white"
+            : "text-gray-600 hover:text-gray-800"
             }`}
         >
           Chat
@@ -294,6 +357,46 @@ function IndexPopup() {
                 <span className="text-xs text-gray-600">minutes</span>
               </div>
             </div>
+          </div>
+
+          {/* Test Buttons Section */}
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Test Functions</h3>
+            <div className="space-y-2">
+              <button
+                onClick={extractDOM}
+                disabled={isExtractingDOM}
+                className="w-full px-4 py-2 bg-green-500 text-white rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+              >
+                {isExtractingDOM ? "Extracting..." : "Extract DOM from Current Tab"}
+              </button>
+              <button
+                onClick={generateClientStateSnapshot}
+                disabled={isGeneratingSnapshot}
+                className="w-full px-4 py-2 bg-purple-500 text-white rounded-md text-sm font-medium hover:bg-purple-600 transition-colors disabled:opacity-50"
+              >
+                {isGeneratingSnapshot ? "Generating..." : "Generate Client State Snapshot"}
+              </button>
+            </div>
+
+            {/* Last Results */}
+            {(lastDOMData || lastSnapshot) && (
+              <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
+                <p className="text-gray-600 font-medium">Last Results:</p>
+                {lastDOMData && (
+                  <div className="mt-1">
+                    <p className="text-gray-800">DOM: {lastDOMData.domData.url}</p>
+                    <p className="text-gray-600">{lastDOMData.domData.html.length} characters</p>
+                  </div>
+                )}
+                {lastSnapshot && (
+                  <div className="mt-1">
+                    <p className="text-gray-800">Snapshot: {lastSnapshot.current_tasks.length} tasks</p>
+                    <p className="text-gray-600">{lastSnapshot.dom_string.length} chars DOM</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Tasks List */}
@@ -441,8 +544,8 @@ function IndexPopup() {
                 chatMessages.map(message => (
                   <div key={message.id} className={`flex ${message.type === 'ai' ? 'justify-start' : 'justify-end'}`}>
                     <div className={`rounded-lg p-3 max-w-xs ${message.type === 'ai'
-                        ? 'bg-blue-100 text-gray-700'
-                        : 'bg-blue-500 text-white'
+                      ? 'bg-blue-100 text-gray-700'
+                      : 'bg-blue-500 text-white'
                       }`}>
                       <p className="text-sm">{message.text}</p>
                       <p className="text-xs opacity-75 mt-1">
